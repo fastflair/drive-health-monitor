@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drive Health</title>
+<style>
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dfe3e8;
+  --text: #1c2330; --muted: #5d6878; --faint: #8a94a3;
+  --ok: #1f8a4c; --ok-bg: #e5f5eb; --warn: #a86400; --warn-bg: #fff3dc;
+  --crit: #c4262e; --crit-bg: #fde8e8; --info: #2f6fb8; --info-bg: #e7f0fb;
+  --unk: #6b7280; --unk-bg: #eef0f3;
+  --bar: #2f6fb8; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1218; --surface: #171b23; --surface-2: #1e232d; --border: #2a303c;
+    --text: #e6e9ef; --muted: #a3acba; --faint: #6f7887;
+    --ok: #4cc47e; --ok-bg: #15281e; --warn: #f0b04a; --warn-bg: #2d2412;
+    --crit: #ff6b6b; --crit-bg: #331618; --info: #74a9ef; --info-bg: #15233a;
+    --unk: #9aa3af; --unk-bg: #22262e; --bar: #74a9ef; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px 16px 48px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; }
+header h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -.01em; }
+header .meta { color: var(--muted); font-size: 13px; }
+header .spacer { flex: 1; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.ok { color: var(--ok); background: var(--ok-bg); }
+.warning { color: var(--warn); background: var(--warn-bg); }
+.critical { color: var(--crit); background: var(--crit-bg); }
+.info { color: var(--info); background: var(--info-bg); }
+.unknown { color: var(--unk); background: var(--unk-bg); }
+.hero { border-radius: 12px; padding: 16px 18px; margin-bottom: 18px; border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); }
+.hero.critical { border-color: var(--crit); background: var(--crit-bg); color: var(--text); }
+.hero.warning { border-color: var(--warn); background: var(--warn-bg); color: var(--text); }
+.hero h2 { margin: 0 0 4px; font-size: 17px; }
+.hero p { margin: 0; color: var(--muted); }
+.banner { border-radius: 10px; padding: 10px 14px; margin-bottom: 12px; font-size: 13px; border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); }
+.banner b { color: var(--text); }
+.issues { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; }
+.issues li { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; font-size: 13px; }
+.issues .tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  padding: 1px 6px; border-radius: 4px; margin-top: 2px; }
+.new { font-size: 10px; font-weight: 700; color: var(--crit); margin-left: 6px; text-transform: uppercase; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+@media (max-width: 400px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow);
+  overflow: hidden; display: flex; flex-direction: column; }
+.card .stripe { height: 4px; }
+.card .stripe.ok { background: var(--ok); } .card .stripe.warning { background: var(--warn); }
+.card .stripe.critical { background: var(--crit); } .card .stripe.unknown { background: var(--unk); }
+.card .body { padding: 14px 16px 12px; flex: 1; }
+.card .top { display: flex; gap: 10px; align-items: flex-start; }
+.card h3 { margin: 0; font-size: 15px; font-weight: 650; flex: 1; word-break: break-word; }
+.card .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.letters { flex: none; min-width: 34px; padding: 2px 8px; border-radius: 7px; background: var(--text); color: var(--surface);
+  font-weight: 700; font-size: 14px; text-align: center; font-variant-numeric: tabular-nums; }
+.est { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 3px; white-space: nowrap; }
+.est.warning { color: var(--warn); }
+.vol { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.vol b { color: var(--text); }
+.vol .vfree { float: right; font-variant-numeric: tabular-nums; }
+.vol .meter { margin-top: 3px; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 6px; }
+.stat { background: var(--surface-2); border-radius: 8px; padding: 7px 9px; min-width: 0; }
+.stat .k { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.stat .v { font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat .v small { font-size: 11px; font-weight: 500; color: var(--muted); }
+.stat .v.warning, .stat .v.critical, .stat .v.ok { background: none; }
+.meter { height: 4px; border-radius: 2px; background: var(--border); margin-top: 5px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--bar); }
+.meter i.warning { background: var(--warn); } .meter i.critical { background: var(--crit); }
+.hist { display: flex; gap: 2px; margin-top: 12px; align-items: center; }
+.hist span { flex: 1; max-width: 10px; height: 10px; border-radius: 2px; background: var(--ok); opacity: .75; }
+.hist span.warning { background: var(--warn); } .hist span.critical { background: var(--crit); }
+.hist span.unknown { background: var(--unk); }
+.hist em { font-style: normal; font-size: 11px; color: var(--faint); margin-left: 6px; white-space: nowrap; }
+.clean { color: var(--ok); font-size: 13px; margin-top: 10px; }
+details { border-top: 1px solid var(--border); }
+summary { cursor: pointer; padding: 9px 16px; font-size: 12px; color: var(--muted); user-select: none; }
+summary:hover { color: var(--text); }
+.det { padding: 0 16px 14px; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; }
+tr.bad td { color: var(--crit); font-weight: 600; }
+h4 { margin: 12px 0 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.help { margin-top: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.help .det { padding-top: 4px; color: var(--muted); font-size: 13px; }
+.help dt { color: var(--text); font-weight: 600; margin-top: 8px; }
+.help dd { margin: 0; }
+footer { margin-top: 18px; color: var(--faint); font-size: 12px; }
+code { font-family: Consolas, ui-monospace, monospace; font-size: 12px; background: var(--surface-2); padding: 1px 4px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const DATA = /*__DATA__*/null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rank = { ok: 0, unknown: 1, warning: 2, critical: 3 };
+const label = { ok: 'Healthy', warning: 'Warning', critical: 'Critical', unknown: 'Unknown', info: 'Info' };
+const arr = x => x == null ? [] : Array.isArray(x) ? x : [x];
+const fmtSize = b => { if (!b) return '—'; const tb = b / 1e12; return tb >= 1 ? tb.toFixed(tb >= 10 ? 0 : 1) + ' TB' : Math.round(b / 1e9) + ' GB'; };
+const fmtHours = h => { if (h == null) return '—'; const y = h / 8766; return y >= 1 ? y.toFixed(1) + '<small> yr</small>' : Math.round(h / 24) + '<small> days</small>'; };
+const ago = iso => { const m = (Date.now() - new Date(iso)) / 60000; if (m < 1) return 'just now'; if (m < 60) return Math.round(m) + ' min ago'; if (m < 1440) return Math.round(m / 60) + ' h ago'; return Math.round(m / 1440) + ' days ago'; };
+
+function render() {
+  const app = document.getElementById('app');
+  if (!DATA) { app.innerHTML = '<p>No data yet — run DriveHealth.ps1.</p>'; return; }
+  const drives = arr(DATA.drives).slice().sort((a, b) => (rank[b.status] - rank[a.status]) || (+a.diskNumber - +b.diskNumber));
+  const general = arr(DATA.general);
+  const newSet = new Set(arr(DATA.newIssues));
+  const bad = drives.filter(d => rank[d.status] >= 2);
+  const ageH = (Date.now() - new Date(DATA.generated)) / 3.6e6;
+
+  let h = `<header><h1>Drive Health</h1><span class="pill ${DATA.overall}">${label[DATA.overall]}</span>
+    <span class="spacer"></span>
+    <span class="meta">${esc(DATA.computer)} · checked ${new Date(DATA.generated).toLocaleString()} (${ago(DATA.generated)})</span></header>`;
+
+  if (ageH > 48) h += `<div class="banner"><b>These results are ${Math.round(ageH / 24)} days old.</b> The scheduled check may not be running — use “Check Drives Now”, or re-run Install.ps1.</div>`;
+  if (DATA.mode === 'limited') h += `<div class="banner"><b>Limited data:</b> this check ran without administrator rights, so SMART attributes could not be read. Only Windows' basic health status is shown. The scheduled task runs elevated; use the “Check Drives Now” shortcut.</div>`;
+  if (DATA.mode === 'windows') h += `<div class="banner"><b>Basic mode:</b> smartmontools isn't installed, so only Windows' storage counters are used. Install it for much earlier warnings (reallocated/pending sectors, self-tests): <code>winget install smartmontools.smartmontools</code></div>`;
+
+  // Hero summary
+  if (DATA.overall === 'critical' || DATA.overall === 'warning') {
+    const crit = DATA.overall === 'critical';
+    h += `<div class="hero ${DATA.overall}"><h2>${crit ? 'Back up affected drives now' : 'Early warning signs detected'}</h2>
+      <p>${bad.length} of ${drives.length} drives need attention${general.length ? ', plus ' + general.length + ' system-level notice(s)' : ''}.
+      ${crit ? 'Copy anything important off these drives and plan a replacement.' : 'Make sure backups are current and watch whether these numbers keep rising.'}</p>
+      ${general.length ? issueList(general, '', newSet) : ''}</div>`;
+  } else {
+    h += `<div class="hero"><h2>All ${drives.length} drives look healthy</h2><p>No SMART warnings, error-log events or rising error counters.</p></div>`;
+  }
+
+  h += `<div class="grid">${drives.map(d => card(d, newSet)).join('')}</div>`;
+  h += helpBlock();
+  h += `<footer>Source: ${DATA.mode === 'smartctl' ? 'smartctl (' + esc(DATA.smartctl) + ')' : 'Windows storage APIs'} + System event log (last ${DATA.eventDays} days).
+    History and log: <code>data\\history.json</code>, <code>data\\monitor.log</code>.</footer>`;
+  app.innerHTML = h;
+}
+
+function issueList(list, driveKey, newSet) {
+  const lv = { critical: 0, warning: 1, info: 2 };
+  const items = arr(list).slice().sort((a, b) => lv[a.level] - lv[b.level]);
+  return `<ul class="issues">${items.map(i => {
+    const k = driveKey ? driveKey + '|' + i.key : i.key;
+    const isNew = i.level !== 'info' && newSet.has(k);
+    return `<li><span class="tag ${i.level}">${label[i.level] || i.level}</span><span>${esc(i.text)}${isNew ? '<span class="new">new</span>' : ''}</span></li>`;
+  }).join('')}</ul>`;
+}
+
+function tempClass(d) {
+  if (d.tempC == null) return '';
+  const lim = d.bus === 'NVMe' ? [70, 80] : d.media === 'SSD' ? [65, 75] : [50, 60];
+  return d.tempC >= lim[1] ? 'critical' : d.tempC >= lim[0] ? 'warning' : '';
+}
+
+function card(d, newSet) {
+  const issues = arr(d.issues);
+  const real = issues.filter(i => i.level !== 'info');
+  const life = d.lifeLeftPct;
+  const lifeCls = life == null ? '' : life <= 10 ? 'critical' : life <= 20 ? 'warning' : '';
+  const smartTxt = d.smartPassed === true ? 'Passed' : d.smartPassed === false ? 'FAILED' : (d.winHealth || '—');
+  const smartCls = d.smartPassed === false || d.winHealth === 'Unhealthy' ? 'critical' : d.winHealth === 'Warning' ? 'warning' : '';
+  const hist = arr(d.history);
+  const vols = arr(d.volumes);
+  const est = d.lifeEstimateDays;
+
+  let s = `<div class="card"><div class="stripe ${d.status}"></div><div class="body">
+    <div class="top">${vols.length ? `<span class="letters">${vols.map(v => esc(v.letter) + ':').join(' ')}</span>` : ''}<h3>${esc(d.name)}</h3><span class="pill ${d.status}">${label[d.status]}</span></div>
+    <div class="sub">${fmtSize(d.sizeBytes)} · ${esc(d.bus)} ${esc(d.media === 'Unspecified' ? '' : d.media)} · Disk ${esc(d.diskNumber)} · S/N ${esc(d.serial || '—')}</div>
+    ${vols.map(v => {
+      const used = v.sizeBytes && v.freeBytes != null ? 100 - (v.freeBytes / v.sizeBytes * 100) : null;
+      return `<div class="vol"><b>${esc(v.letter)}:</b> ${esc(v.label || 'No label')}
+        <span class="vfree">${v.freeBytes != null ? fmtSize(v.freeBytes) + ' free of ' + fmtSize(v.sizeBytes) : fmtSize(v.sizeBytes)}</span>
+        ${used != null ? `<div class="meter"><i class="${used >= 95 ? 'critical' : used >= 85 ? 'warning' : ''}" style="width:${Math.max(1, used)}%"></i></div>` : ''}</div>`;
+    }).join('')}
+    <div class="stats">
+      <div class="stat"><div class="k">SMART</div><div class="v ${smartCls}">${esc(smartTxt)}</div></div>
+      <div class="stat"><div class="k">Temp</div><div class="v ${tempClass(d)}">${d.tempC != null ? d.tempC + '<small> °C</small>' : '—'}</div></div>
+      <div class="stat"><div class="k">Powered on</div><div class="v">${fmtHours(d.powerOnHours)}</div></div>
+      <div class="stat"><div class="k">${life != null ? 'Life left' : 'Written'}</div>
+        <div class="v">${life != null ? life + '<small>%</small>' : (d.tbWritten != null ? d.tbWritten + '<small> TB</small>' : '—')}</div>
+        ${life != null ? `<div class="meter"><i class="${lifeCls}" style="width:${Math.max(2, life)}%"></i></div>` : ''}
+        ${est != null && est < 365 ? `<div class="est ${est < 90 ? 'warning' : ''}" title="Estimated from ${esc(d.lifeEstimateBasis)}">~${est} days</div>` : ''}</div>
+    </div>`;
+  s += real.length || issues.length ? issueList(issues, d.key, newSet) : '';
+  if (!real.length) s += `<div class="clean">No warning signs.</div>`;
+  if (hist.length > 1) {
+    s += `<div class="hist" title="Status at each of the last ${hist.length} checks">${hist.map(x => `<span class="${x.s}" title="${new Date(x.t).toLocaleString()}: ${label[x.s] || x.s}${x.c != null ? ', ' + x.c + ' °C' : ''}"></span>`).join('')}<em>last ${hist.length} checks</em></div>`;
+  }
+  s += `</div>`;
+
+  // details
+  let det = '';
+  const c = d.counters || {};
+  const ckeys = Object.keys(c);
+  const cl = { reallocated: 'Reallocated sectors (5)', reallocEvents: 'Reallocation events (196)', pending: 'Pending sectors (197)',
+    offlineUncorrectable: 'Offline uncorrectable (198)', reportedUncorrect: 'Reported uncorrectable (187)', spinRetry: 'Spin retries (10)',
+    endToEnd: 'End-to-end errors (184)', crcErrors: 'Interface CRC errors (199)', errorLogCount: 'ATA error log entries',
+    mediaErrors: 'Media errors', nvmeErrorLog: 'Error log entries', unsafeShutdowns: 'Unsafe shutdowns', readErrorsUncorrected: 'Uncorrected read errors' };
+  if (ckeys.length) {
+    det += `<h4>Key counters</h4><table><tr><th>Counter</th><th>Value</th></tr>${ckeys.map(k =>
+      `<tr class="${c[k] > 0 && ['reallocated','pending','offlineUncorrectable','reportedUncorrect','endToEnd','mediaErrors'].includes(k) ? 'bad' : ''}"><td>${esc(cl[k] || k)}</td><td>${esc(c[k])}</td></tr>`).join('')}</table>`;
+  }
+  const tr = arr(d.trend);
+  if (tr.length) {
+    det += `<h4>Since monitoring began (${new Date(tr[0].firstTime).toLocaleDateString()})</h4><table><tr><th>Counter</th><th>Then</th><th>Now</th></tr>${tr.map(t =>
+      `<tr class="${t.now > t.first ? 'bad' : ''}"><td>${esc(t.label)}</td><td>${t.first}</td><td>${t.now}</td></tr>`).join('')}</table>`;
+  }
+  if (d.selfTest) det += `<h4>Last self-test</h4><div>${esc(d.selfTest.type)}: ${esc(d.selfTest.status)} (at ${esc(d.selfTest.hours)} h)</div>`;
+  const at = arr(d.attributes);
+  if (at.length) {
+    det += `<h4>All SMART attributes</h4><table><tr><th>ID</th><th>Name</th><th>Value</th><th>Worst</th><th>Thresh</th><th>Raw</th></tr>${at.map(a =>
+      `<tr class="${a.failed ? 'bad' : ''}"><td>${a.id}</td><td>${esc(a.name)}</td><td>${a.value}</td><td>${a.worst}</td><td>${a.thresh}</td><td>${esc(a.raw)}</td></tr>`).join('')}</table>`;
+  }
+  if (d.nvme) {
+    det += `<h4>NVMe health log</h4><table>${Object.entries(d.nvme).filter(([k, v]) => typeof v !== 'object').map(([k, v]) =>
+      `<tr><td>${esc(k.replace(/_/g, ' '))}</td><td>${esc(v)}</td></tr>`).join('')}</table>`;
+  }
+  det += `<h4>Device</h4><table>
+    <tr><td>Model</td><td>${esc(d.model)}</td></tr><tr><td>Firmware</td><td>${esc(d.firmware)}</td></tr>
+    <tr><td>Windows health</td><td>${esc(d.winHealth)} / ${esc(d.winOperational)}</td></tr>
+    <tr><td>Data source</td><td>${esc(d.source)}${d.smartDevice ? ' ' + esc(d.smartDevice) : ''}</td></tr>
+    ${d.tbWritten != null ? `<tr><td>Total written</td><td>${d.tbWritten} TB</td></tr>` : ''}
+    ${d.lifeLeftPct != null ? `<tr><td>Endurance estimate</td><td>${d.lifeEstimateDays != null
+        ? (d.lifeEstimateDays < 365 ? '~' + d.lifeEstimateDays + ' days' : '~' + (d.lifeEstimateDays / 365.25).toFixed(d.lifeEstimateDays > 3650 ? 0 : 1) + ' years') + ' (' + esc(d.lifeEstimateBasis) + ')'
+        : 'Not enough wear yet to estimate'}</td></tr>` : ''}
+    ${d.powerOnHours != null ? `<tr><td>Power-on hours</td><td>${d.powerOnHours.toLocaleString()}</td></tr>` : ''}</table>`;
+  s += `<details><summary>Details</summary><div class="det">${det}</div></details></div>`;
+  return s;
+}
+
+function helpBlock() {
+  return `<details class="help"><summary>What the warning signs mean</summary><div class="det"><dl>
+    <dt>Pending / offline-uncorrectable sectors (197, 198) — critical</dt><dd>Sectors the drive can't read. The strongest single predictor of an imminent hard drive failure. Back up right away.</dd>
+    <dt>Reallocated sectors (5)</dt><dd>Bad sectors already swapped for spares. A few that stay flat for months is tolerable; a number that keeps climbing means the surface is degrading.</dd>
+    <dt>Reported uncorrectable (187), end-to-end (184), spin retry (10)</dt><dd>Read failures, internal data-path corruption and motor trouble respectively.</dd>
+    <dt>Interface CRC errors (199)</dt><dd>Corrupted transfers over the cable. Almost always a loose/bad SATA cable or port, not the disk itself — reseat or replace the cable if it rises.</dd>
+    <dt>SSD life left / NVMe percentage used</dt><dd>How much of the manufacturer's rated write endurance remains. SSDs often keep working past 0%, but the warranty and guarantees end there.</dd>
+    <dt>NVMe media errors / critical warning</dt><dd>Data the SSD could not read back, or the controller flagging itself as degraded or read-only.</dd>
+    <dt>"INCREASED since the last check"</dt><dd>Any of the above going up between checks. A rising trend matters more than a static number.</dd>
+    <dt>System log events</dt><dd>Windows logged bad blocks, controller resets, paging errors or file-system corruption for this disk.</dd>
+    <dt>Temperature</dt><dd>Hard drives: warn at 50 °C, critical at 60 °C. SATA SSDs 65/75 °C, NVMe 70/80 °C.</dd>
+  </dl><p>SMART catches many failures early, but not all — sudden failures (electronics, firmware) can happen without warning. It complements backups; it doesn't replace them.</p></div></details>`;
+}
+
+render();
+</script>
+</body>
+</html>
